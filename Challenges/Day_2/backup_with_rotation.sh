@@ -1,41 +1,43 @@
+
 #!/bin/bash
 
-# Function to display usage information and available options
-function display_usage {
-    echo "Usage: $0 /path/to/source_directory"
-}
-
-# Check if a valid directory path is provided as a command-line argument
-if [ $# -eq 0 ] || [ ! -d "$1" ]; then
-    echo "Error: Please provide a valid directory path as a command-line argument."
-    display_usage
-    exit 1
+# Check if the user provided a directory path as an argument
+if [ $# -ne 1 ]; then # $# is a special variable in Bash that represents the number of command-line arguments passed to the script or function
+  echo "Usage: $0 <directory>" # directory is /home/master/Desktop/Bash_7_Days_Challenge
+  exit 1
 fi
 
-# Directory path of the source directory to be backed up
-source_dir="$1"
+# Get the current timestamp in YYYY-MM-DD-HHMMSS format
+timestamp=$(date +'%Y-%m-%d-%H%M%S')
 
-# Function to create a timestamped backup folder
-function create_backup {
-    local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')  # Get the current timestamp
-    local backup_dir="${source_dir}/backup_${timestamp}"
 
-    # Create the backup folder with the timestamped name
-    mkdir "$backup_dir"
-    echo "Backup created successfully: $backup_dir"
-}
 
-# Function to perform the rotation and keep only the last 3 backups
-function perform_rotation {
-    local backups=($(ls -t "${source_dir}/backup_"* 2>/dev/null))  # List existing backups sorted by timestamp
+# Define the backup directory path
+backup_dir="/home/master/Desktop/Backup"
 
-    # Check if there are more than 3 backups
-    if [ "${#backups[@]}" -gt 3 ]; then
-        local backups_to_remove="${backups[@]:3}"  # Get backups beyond the last 3
-        rm -rf "${backups_to_remove[@]}"  # Remove the oldest backups
-    fi
-}
+# Check if the backup directory exists, create it if not
+if [ ! -d "$backup_dir" ]; then
+  mkdir -p "$backup_dir"
+fi
 
-# Main script logic
-create_backup
-perform_rotation
+# Create a new backup folder with the timestamp
+backup_folder="$backup_dir/$timestamp"
+mkdir "$backup_folder"
+
+# Copy all files from the specified directory to the backup folder
+cp -r "$1"/* "$backup_folder"
+
+# List all backup folders, sort them by name (oldest first), and keep the last 3
+backup_list=$(find "$backup_dir" -type d -name '[0-9]*' | sort)
+num_backups=$(echo "$backup_list" | wc -l)
+
+if [ $num_backups -gt 3 ]; then
+  num_to_delete=$((num_backups - 3))
+  backups_to_delete=$(echo "$backup_list" | head -n $num_to_delete)
+
+  for backup_to_delete in $backups_to_delete; do
+    rm -rf "$backup_to_delete"
+  done
+fi
+
+echo "Backup completed: $timestamp"
